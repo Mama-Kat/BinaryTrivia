@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Binary Trivia!</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+    /* ────────────────────── GLOBAL ────────────────────────────── */
+    body {
+        font-family: 'Press Start 2P', monospace;
+        background: black;               /* dark mode */
+        color: #33ff33;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+    body.light {                        /* light mode */
+        background: #f0f0f0;
+        color: #000;
+    }
+    body.light button { border-color:#333; color:#000; background:#ccc; }
+    body.light .binary-bit,
+    body.light .bit-label,
+    body.light .bit-cell { border:1px solid #333; color:#000; }
+
+    .crt { text-align:center; width:100%; max-width:800px; }
+
+    h1 {
+        font-size:24px;
+        text-shadow:0 0 5px #33ff33;
+        margin-bottom: 20px;
+    }
+    button {
+        background:black; border:2px solid #33ff33; color:#33ff33;
+        padding:12px 20px; margin:8px; font-family:inherit;
+        cursor:pointer; text-transform:uppercase;
+        transition:.2s;
+        border-radius: 4px;
+        min-height: 44px; /* Minimum touch target size */
+    }
+    button:hover { background:#33ff33; color:black; }
+
+    /* ─────────────────────── BINARY DISPLAY ─────────────────────── */
+    .binary-array   { 
+        margin:20px auto; 
+        transform-origin:top center; 
+        width:100%; 
+        overflow-x:auto; 
+        padding: 5px;
+    }
+    .binary-row    { 
+        display:grid; 
+        justify-content:center; 
+        grid-auto-flow:column; 
+        gap: 1px;
+    }
+    .binary-bit,
+    .bit-label {
+        border:1px solid #33ff33;
+        min-width:18px; min-height:18px; text-align:center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+    }
+    .binary-bit { 
+        padding:4px; 
+        cursor:pointer; 
+        margin:1px; 
+        border-radius: 2px;
+    }
+    .bit-label { 
+        margin:1px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 8px;
+    }
+
+    /* Smaller cells for Hard mode */
+    .hard-mode .binary-bit,
+    .hard-mode .bit-label {
+        min-width:14px;
+        min-height:14px;
+        font-size:8px;
+        padding:3px;
+    }
+
+    /* Easy mode - larger cells */
+    .easy-mode .binary-bit,
+    .easy-mode .bit-label {
+        min-width:24px;
+        min-height:24px;
+        font-size:12px;
+        padding:6px;
+    }
+
+    /* Normal mode - medium cells */
+    .normal-mode .binary-bit,
+    .normal-mode .bit-label {
+        min-width:20px;
+        min-height:20px;
+        font-size:10px;
+        padding:5px;
+    }
+
+    /* ─────────────────────── KEYPAD ─────────────────────── */
+    #keypad { 
+        display:grid; 
+        grid-template-columns:repeat(3,1fr); 
+        gap:8px; 
+        margin:10px auto; 
+        max-width:300px;
+        width:100%;
+    }
+    #keypad button { 
+        font-size:20px; 
+        width:100%;
+        aspect-ratio: 1;
+    }
+
+    .hidden { display:none; }
+
+    /* ─────────────────────── SETTINGS ─────────────────────── */
+    .settings { 
+        position:absolute; 
+        top:10px; 
+        right:10px;
+        z-index: 50;
+    }
+    .dropdown { position:relative; display:inline-block; }
+    .dropdown-content {
+        display:none; position:absolute; right:0;
+        background-color:black; border:2px solid #33ff33;
+        min-width:200px; z-index:1;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .dropdown-content button { 
+        display:block; 
+        width:100%; 
+        margin:0; 
+        text-align:left;
+        border-radius: 0;
+        border: none;
+        border-bottom: 1px solid #33ff33;
+    }
+    .dropdown-content button:last-child {
+        border-bottom: none;
+    }
+    .dropdown:hover .dropdown-content { display:block; }
+
+    /* ─────────────────────── MODALS ─────────────────────── */
+    .modal {
+        display:none; position:fixed; top:0; left:0;
+        width:100%; height:100%;
+        background:rgba(0,0,0,0.8);
+        align-items:center; justify-content:center;
+        z-index:100;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+    .modal-content {
+        background:black; border:2px solid #33ff33;
+        padding:20px; color:#33ff33; text-align:center;
+        max-width:90vw; max-height:80vh; overflow-y:auto;
+        font-size:12px;
+        border-radius: 8px;
+        box-sizing: border-box;
+    }
+    body.light .modal-content { background:#fff; color:#000; border:2px solid #333; }
+    
+    /* Tutorial bit grid - horizontal layout */
+    .bit-grid { 
+        display:flex; 
+        flex-direction: column;
+        margin:10px 0; 
+        font-size:8px;
+        gap: 4px;
+        overflow-x: auto;
+    }
+    .bit-row {
+        display: flex;
+        justify-content: center;
+        gap: 2px;
+        flex-wrap: nowrap;
+    }
+    .bit-cell { 
+        border:1px solid #33ff33; 
+        padding:4px; 
+        min-width: 30px;
+        text-align: center;
+        flex-shrink: 0;
+        font-size: 7px;
+    }
+    body.light .bit-cell { border:1px solid #333; }
+
+    /* ─────────────────────── CALCULATOR ─────────────────────── */
+    #calculator {
+        position:fixed; bottom:10px; left:50%; transform:translateX(-50%);
+        width:280px; border:2px solid #33ff33; background:black; color:#33ff33;
+        display:none; z-index:200;
+        border-radius: 8px;
+        max-width: 90vw;
+    }
+    #calc-header {
+        background:#111; padding:8px; cursor:move;
+        font-size:10px; text-align:left; user-select:none;
+        border-radius: 6px 6px 0 0;
+    }
+    #calc-header button { float:right; font-size:10px; margin:-2px 0; }
+    #calc-display {
+        height:50px; background:#000; color:#33ff33;
+        text-align:right; padding:8px; border-bottom:1px solid #33ff33;
+        overflow-x:auto;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    #calc-buttons { 
+        display:grid; 
+        grid-template-columns:repeat(4,1fr); 
+        gap: 4px;
+        padding: 8px;
+    }
+    #calc-buttons button { 
+        border:1px solid #33ff33; 
+        margin:0;
+        aspect-ratio: 1;
+        font-size: 16px;
+    }
+
+    /* ─────────────────────── MEDIA QUERIES ─────────────────────── */
+    @media (max-width: 768px) {
+        h1 {
+            font-size: 18px;
+        }
+        
+        button {
+            padding: 14px 16px;
+            font-size: 12px;
+        }
+        
+        .binary-bit,
+        .bit-label {
+            min-width: 16px;
+            min-height: 16px;
+            font-size: 9px;
+        }
+        
+        .easy-mode .binary-bit,
+        .easy-mode .bit-label {
+            min-width: 20px;
+            min-height: 20px;
+            font-size: 10px;
+        }
+        
+        .normal-mode .binary-bit,
+        .normal-mode .bit-label {
+            min-width: 18px;
+            min-height: 18px;
+            font-size: 9px;
+        }
+        
+        .hard-mode .binary-bit,
+        .hard-mode .bit-label {
+            min-width: 14px;
+            min-height: 14px;
+            font-size: 8px;
+        }
+        
+        .bit-cell {
+            min-width: 25px;
+            font-size: 6px;
+        }
+        
+        #calculator {
+            width: 90vw;
+            bottom: 5px;
+        }
+        
+        #calc-buttons button {
+            font-size: 18px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        h1 {
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 12px 14px;
+            margin: 6px;
+            font-size: 10px;
+        }
+        
+        .binary-bit,
+        .bit-label {
+            min-width: 14px;
+            min-height: 14px;
+            font-size: 8px;
+        }
+        
+        .easy-mode .binary-bit,
+        .easy-mode .bit-label {
+            min-width: 18px;
+            min-height: 18px;
+            font-size: 9px;
+        }
+        
+        .normal-mode .binary-bit,
+        .normal-mode .bit-label {
+            min-width: 16px;
+            min-height: 16px;
+            font-size: 8px;
+        }
+        
+        .hard-mode .binary-bit,
+        .hard-mode .bit-label {
+            min-width: 12px;
+            min-height: 12px;
+            font-size: 7px;
+        }
+        
+        .bit-cell {
+            min-width: 20px;
+            font-size: 5px;
+            padding: 2px;
+        }
+        
+        .modal-content {
+            font-size: 10px;
+            padding: 15px;
+        }
+        
+        #keypad {
+            gap: 6px;
+        }
+        
+        #keypad button {
+            font-size: 18px;
+        }
+    }
+</style>
+</head>
+<body class="crt">
+
+<!-- SETTINGS -->
+<div class="settings">
+    <div class="dropdown">
+        <button>⚙️</button>
+        <div class="dropdown-content">
+            <button onclick="openHowToPlay()">📘 How to Play</button>
+            <button onclick="openInfo()">ℹ️ Info</button>
+            <button onclick="toggleTheme()">🌙 Toggle Dark/Light</button>
+            <button onclick="setDifficulty('easy')">🎯 Easy</button>
+            <button onclick="setDifficulty('normal')">⚡ Normal</button>
+            <button onclick="setDifficulty('hard')">🔥 Hard</button>
+        </div>
+    </div>
+</div>
+
+<!-- MENU -->
+<div id="menu">
+    <h1>Binary Trivia!</h1>
+    <button onclick="startGame('easy')">Easy</button>
+    <button onclick="startGame('normal')">Normal</button>
+    <button onclick="startGame('hard')">Hard</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="hidden">
+    <div id="question"></div>
+    <div id="binary-input" class="binary-array hidden"></div>
+    <div id="decimal-input" class="hidden">
+        <div id="answer-display">Answer: </div>
+        <div id="keypad"></div>
+    </div>
+    <button id="submitBtn">Submit</button>
+    <button id="revealBtn">Reveal</button>
+    <button id="calcBtn" class="hidden" onclick="toggleCalc()">🧮 Calculator</button>
+    <div id="feedback"></div>
+    <button id="continueBtn" class="hidden">Continue</button>
+    <div id="score">0/0</div>
+</div>
+
+<!-- HOW TO PLAY MODAL -->
+<div id="howToPlayModal" class="modal">
+    <div class="modal-content">
+        <h2>How to Read Binary</h2>
+        <p>Each bit has a value based on its position.</p>
+        <div class="bit-grid" id="bit-values"></div>
+        <p>If a bit is <b>1</b>, add its value. If it's <b>0</b>, skip it.</p>
+        <p>Example: <b>0000000000010101</b></p>
+        <p>= 16 + 4 + 1 = <b>21</b></p>
+        <button onclick="closeHowToPlay()">Close</button>
+    </div>
+</div>
+
+<!-- INFO MODAL -->
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <p>Made by VIgo, the current version is v1.</p>
+        <button onclick="closeInfo()">Close</button>
+    </div>
+</div>
+
+<!-- CALCULATOR -->
+<div id="calculator">
+    <div id="calc-header">Calculator <button onclick="toggleCalc()">X</button></div>
+    <div id="calc-display">0</div>
+    <div id="calc-buttons"></div>
+</div>
+
+<script>
+/* ─────────────────────── GLOBAL VARIABLES ─────────────────────── */
+let mode = "easy";                     // current difficulty
+let score = { correct:0, total:0 };
+let currentAnswer;
+let decimalBuffer = "";
+let calcInput = "";
+
+/* ─────────────────────── START / DIFFICULTY ─────────────────────── */
+function startGame(m){
+    mode = m;
+    score = {correct:0,total:0};
+    document.getElementById("menu").classList.add("hidden");
+    document.getElementById("game").classList.remove("hidden");
+
+    // show calculator only in easy/normal
+    if(mode==="easy"||mode==="normal")
+        document.getElementById("calcBtn").classList.remove("hidden");
+    else
+        document.getElementById("calcBtn").classList.add("hidden");
+
+    nextQuestion();
+}
+function setDifficulty(lvl){ startGame(lvl); }
+
+/* ─────────────────────── QUESTION GENERATOR ─────────────────────── */
+function nextQuestion(){
+    document.getElementById("feedback").innerText = "";
+    document.getElementById("continueBtn").classList.add("hidden");
+
+    const qType = Math.random()<0.5 ? "bin2dec" : "dec2bin";
+    const max = (mode==="easy")?255:(mode==="normal")?4095:65535;
+    const num = Math.floor(Math.random()* (max+1));
+
+    if(qType==="bin2dec"){
+        const bin = num.toString(2).padStart(mode==="easy"?8:(mode==="normal"?12:16),"0");
+        currentAnswer = parseInt(bin,2);
+        document.getElementById("question").innerText = `Convert Binary to Decimal: ${bin}`;
+        document.getElementById("decimal-input").classList.remove("hidden");
+        document.getElementById("binary-input").classList.add("hidden");
+        decimalBuffer = "";
+        renderKeypad();
+    } else {
+        currentAnswer = num.toString(2).padStart(mode==="easy"?8:(mode==="normal"?12:16),"0");
+        document.getElementById("question").innerText = `Convert Decimal to Binary: ${num}`;
+        document.getElementById("binary-input").classList.remove("hidden");
+        document.getElementById("decimal-input").classList.add("hidden");
+        renderBinaryInput(currentAnswer.length);
+    }
+}
+
+/* ─────────────────────── KEYPAD (Decimal) ─────────────────────── */
+function renderKeypad(){
+    const k = document.getElementById("keypad");
+    k.innerHTML = "";
+    ["1","2","3","4","5","6","7","8","9","0","<-"].forEach(v=>{
+        const b=document.createElement("button");
+        b.innerText=v;
+        b.onclick=()=>keyPress(v);
+        k.appendChild(b);
+    });
+    updateDisplay();
+}
+function keyPress(v){
+    if(v==="<-") decimalBuffer = decimalBuffer.slice(0,-1);
+    else decimalBuffer += v;
+    updateDisplay();
+}
+function updateDisplay(){ document.getElementById("answer-display").innerText = "Answer: "+decimalBuffer; }
+
+/* ─────────────────────── BINARY INPUT (Toggle) ─────────────────────── */
+function renderBinaryInput(bits){
+    const container = document.getElementById("binary-input");
+    container.innerHTML = "";
+    
+    // Add appropriate class based on mode
+    let modeClass = "";
+    if(mode === "easy") modeClass = "easy-mode";
+    else if(mode === "normal") modeClass = "normal-mode";
+    else if(mode === "hard") modeClass = "hard-mode";
+    
+    container.className = `binary-array ${modeClass}`;
+
+    // ----- numbers row (Easy only) -----
+    if(mode==="easy"){
+        const numbersRow=document.createElement("div");
+        numbersRow.className="binary-row";
+        numbersRow.style.gridTemplateColumns = `repeat(${bits},1fr)`;
+        for(let i=bits-1;i>=0;i--){
+            const n=document.createElement("div");
+            n.className="bit-label";
+            n.innerText = (2**i);
+            numbersRow.appendChild(n);
+        }
+        container.appendChild(numbersRow);
+    }
+
+    // ----- bits row -----
+    const bitsRow=document.createElement("div");
+    bitsRow.className="binary-row";
+    bitsRow.style.gridTemplateColumns = `repeat(${bits},1fr)`;
+    for(let i=0;i<bits;i++){
+        const b=document.createElement("div");
+        b.className="binary-bit";
+        b.innerText="0";
+        b.onclick=()=>{ b.innerText = (b.innerText==="0")?"1":"0"; };
+        bitsRow.appendChild(b);
+    }
+    container.appendChild(bitsRow);
+}
+
+/* ─────────────────────── ANSWER CHECK ─────────────────────── */
+document.getElementById("submitBtn").onclick = function(){
+    const q = document.getElementById("question").innerText;
+    if(q.includes("Decimal to Binary")){
+        const arr = [...document.querySelectorAll(".binary-bit")].map(b=>b.innerText).join("");
+        checkAnswer(arr);
+    } else {
+        checkAnswer(decimalBuffer);
+    }
+};
+document.getElementById("revealBtn").onclick = function(){ showFeedback(false,true); };
+
+function checkAnswer(ans){
+    const q=document.getElementById("question").innerText;
+    const correct = q.includes("Binary to Decimal")
+        ? parseInt(ans)===currentAnswer
+        : ans===currentAnswer;
+    showFeedback(correct,false);
+}
+function showFeedback(correct,reveal){
+    score.total++;
+    const fb=document.getElementById("feedback");
+    if(reveal) fb.innerText=`Skipped! Correct answer: ${currentAnswer}`;
+    else if(correct){ fb.innerText="✅ Correct!"; score.correct++; }
+    else fb.innerText=`❌ Wrong! Correct answer: ${currentAnswer}`;
+    document.getElementById("score").innerText=`${score.correct}/${score.total}`;
+    document.getElementById("continueBtn").classList.remove("hidden");
+}
+document.getElementById("continueBtn").onclick = function(){ nextQuestion(); };
+
+/* ─────────────────────── SETTINGS & MODALS ─────────────────────── */
+function toggleTheme(){ document.body.classList.toggle("light"); }
+function openHowToPlay(){ document.getElementById("howToPlayModal").style.display="flex"; }
+function closeHowToPlay(){ document.getElementById("howToPlayModal").style.display="none"; }
+function openInfo(){ document.getElementById("infoModal").style.display="flex"; }
+function closeInfo(){ document.getElementById("infoModal").style.display="none"; }
+
+/* ─────────────────────── TUTORIAL GRID (How‑To‑Play) ─────────────────────── */
+(function buildBitGrid(){
+    const g=document.getElementById("bit-values"); 
+    g.innerHTML="";
+    
+    // Create values row
+    const valuesRow = document.createElement("div");
+    valuesRow.className = "bit-row";
+    for(let i=15;i>=0;i--){
+        const d=document.createElement("div"); 
+        d.className="bit-cell"; 
+        d.innerText=2**i; 
+        valuesRow.appendChild(d);
+    }
+    g.appendChild(valuesRow);
+    
+    // Create bits row
+    const bitsRow = document.createElement("div");
+    bitsRow.className = "bit-row";
+    for(let i=0;i<16;i++){
+        const d=document.createElement("div"); 
+        d.className="bit-cell"; 
+        d.innerText="0"; 
+        bitsRow.appendChild(d);
+    }
+    g.appendChild(bitsRow);
+})();
+
+/* ─────────────────────── CALCULATOR ─────────────────────── */
+function toggleCalc(){
+    const c=document.getElementById("calculator");
+    c.style.display = (c.style.display==="block")?"none":"block";
+}
+(function buildCalc(){
+    const btns=["7","8","9","+","4","5","6","-","1","2","3","=","0","C"];
+    const grid=document.getElementById("calc-buttons");
+    btns.forEach(v=>{
+        const b=document.createElement("button"); b.innerText=v;
+        b.onclick=()=>calcPress(v);
+        grid.appendChild(b);
+    });
+})();
+function calcPress(v){
+    const d=document.getElementById("calc-display");
+    if(v==="C"){ calcInput=""; d.innerText="0"; return; }
+    if(v==="="){
+        try{ calcInput=eval(calcInput).toString(); } catch{ calcInput="Error"; }
+        d.innerText=calcInput; return;
+    }
+    calcInput+=v;
+    d.innerText=calcInput;
+}
+
+/* ─────────────────────── DRAG CALCULATOR ─────────────────────── */
+let calc=document.getElementById("calculator");
+let header=document.getElementById("calc-header");
+let offsetX=0, offsetY=0, dragging=false;
+
+// Mouse events
+header.addEventListener("mousedown",e=>{
+    dragging=true;
+    offsetX = e.clientX - calc.offsetLeft;
+    offsetY = e.clientY - calc.offsetTop;
+    document.body.style.userSelect="none";
+});
+document.addEventListener("mouseup",()=>{ dragging=false; document.body.style.userSelect=""; });
+document.addEventListener("mousemove",e=>{
+    if(!dragging) return;
+    let nx = e.clientX - offsetX;
+    let ny = e.clientY - offsetY;
+    // keep within viewport
+    nx = Math.max(0, Math.min(nx, window.innerWidth - calc.offsetWidth));
+    ny = Math.max(0, Math.min(ny, window.innerHeight - calc.offsetHeight));
+    calc.style.left = nx + "px";
+    calc.style.top  = ny + "px";
+});
+
+// Touch events for mobile
+header.addEventListener("touchstart",e=>{
+    dragging=true;
+    const touch = e.touches[0];
+    offsetX = touch.clientX - calc.offsetLeft;
+    offsetY = touch.clientY - calc.offsetTop;
+    document.body.style.userSelect="none";
+});
+document.addEventListener("touchend",()=>{ dragging=false; document.body.style.userSelect=""; });
+document.addEventListener("touchmove",e=>{
+    if(!dragging) return;
+    const touch = e.touches[0];
+    let nx = touch.clientX - offsetX;
+    let ny = touch.clientY - offsetY;
+    // keep within viewport
+    nx = Math.max(0, Math.min(nx, window.innerWidth - calc.offsetWidth));
+    ny = Math.max(0, Math.min(ny, window.innerHeight - calc.offsetHeight));
+    calc.style.left = nx + "px";
+    calc.style.top  = ny + "px";
+});
+</script>
+</body>
+</html>
